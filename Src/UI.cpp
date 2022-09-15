@@ -63,6 +63,7 @@ void  highlightProj(int x_from, int x_to, int y_from, int y_to, int mode){
                 chgat(x_to -x_from+1, mode, COLOR_WHITE, NULL);
         }
         move(before_y, before_x);
+        refresh();
 }
 
 
@@ -88,6 +89,9 @@ int parseCommandRight(int input_ch){
                         break;
                 case KEY_LEFT:
                         curx = 0;
+                        if (cury >= currentProjs)
+                                cury = currentProjs - 1;
+                        highlightProj(0, COLS/4 - 1, cury, cury, A_STANDOUT);
                         focused = LEFT;
                         break;
                 default:
@@ -132,8 +136,11 @@ int parseCommandLeft(int input_ch){
         }
         if (curx >= COLS/4 && focused != RIGHT)
                 curx = COLS/4 - 1;
+        if (cury >= currentProjs)
+                cury = currentProjs-1;
         move(cury, curx);
-        highlightProj(0, COLS/4 -1, cury, cury, A_STANDOUT);
+        if (focused != RIGHT)
+                highlightProj(0, COLS/4 -1, cury, cury, A_STANDOUT);
         refresh();
         return running;
 }
