@@ -31,6 +31,7 @@ Task::Task(){
         desc ="";
         Completed = false;
 }
+
 //###########################[Static functions]#############################
 
 Task * createTask_discon(string line){
@@ -65,7 +66,7 @@ vector<shared_ptr<Task>> createTaskTrees(vector<string> &lines){
                 }
                 else if (d > stack.back().second){ //Can only be 1 bigger if file is correct
                         shared_ptr<Task>newTask = shared_ptr<Task>(createTask_discon(*line));
-                        stack.back().first->subTasks.push_back(newTask);//subTasks.push_back(newTask);
+                        stack.back().first->subTasks.push_back(newTask);
                         stack.push_back(std::pair<shared_ptr<Task>, int>(newTask, d));
                 }else{
                         stack.pop_back();
@@ -91,11 +92,11 @@ vector<shared_ptr<Task>> parseFile(string fileName){
                 }
         }
         tasksRoots = createTaskTrees(lines);
-        for (auto it = tasksRoots.begin(); it != tasksRoots.end(); it++){
-                printTaskTree(*it, 0);
-                if (*it != tasksRoots.back())
-                        printf("\n\n");
-        }
+//        for (auto it = tasksRoots.begin(); it != tasksRoots.end(); it++){
+//                printTaskTree(*it, 0);
+//                if (*it != tasksRoots.back())
+//                        printf("\n\n");
+//        }
         fclose(fp);
         return tasksRoots;
 }

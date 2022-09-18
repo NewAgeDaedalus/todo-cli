@@ -2,16 +2,51 @@
 #include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
+#include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
 
 #ifndef UI
 #define UI
 #include "UI.h"
 #endif
 
+
+#ifndef TASK_MANAGEMENT
+#define TASK_MANAGEMENT
+#include "taskManagement.h"
+#endif
+
+comp_domain::comp_domain(int x_from, int x_to, int y_from, int y_to){
+        x.first = x_from;
+        x.second = x_to;
+        y.first = y_from;
+        y.second = y_to;
+}
+comp_domain::comp_domain(){
+        x.first = -1;
+        x.second = -1;
+        y.first = -1;
+        y.second = -1;
+}
+
+template <typename T>
+UI_Comp<T>::UI_Comp(struct comp_domain Domain, std::shared_ptr<T> Obj){
+        domain = Domain;
+        obj = Obj;
+}
+
+template <typename T>
+UI_Comp<T>::UI_Comp(){
+        domain = comp_domain();
+        obj = nullptr;
+}
+
 extern int focused, currentProjs;
 extern std::vector<std::string> projectNames;
+extern std::vector<std::string> projectFileNames;
+std::vector<UI_Comp<Task>> taskComps;
 
 void initCurses(){
         initscr();
@@ -46,6 +81,7 @@ int loadProjects(){
         while (n--){
                 if (nameList[n]->d_name[0] == '.')
                         continue;
+                projectFileNames.push_back(nameList[n]->d_name);
                 loadProject(nameList[n]->d_name);
                 free(nameList[n]);
         }
@@ -74,6 +110,31 @@ void highlightProj(int x_from, int x_to, int y_from, int y_to, int mode){
                 chgat(x_to -x_from+1, mode, COLOR_WHITE, NULL);
         }
         move(before_y, before_x);
+        refresh();
+}
+
+void drawTaskComp(UI_Comp<Task> comp){
+        //Save the current cursor position
+        int cury, curx;
+        getyx(stdscr, cury, curx);
+        //Draw the task
+        //restore cursor position
+        move(cury, curx);
+}
+
+void loadTodo(std::string projecFileName){
+        std::vector<std::shared_ptr<Task>> taskRoots;
+        taskRoots = parseFile(projecFileName);
+        taskComps.clear();
+        //Create UI COMPON
+        int i = 0;
+        for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
+                struct comp_domain domain(LEFT_RIGHT_BORDER+5,COLS-3, i, i+2);
+                UI_Comp<Task> comp;
+                i+=4;
+                taskComps.push_back(UI_Comp<Task>(domain, *it));
+                drawTaskComp(taskComps.back());
+        }
         refresh();
 }
 
@@ -135,6 +196,12 @@ int parseCommandLeft(int input_ch){
                         highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
                         curx = LEFT_RIGHT_BORDER + 1;
                         focused = RIGHT;
+                        curs_set(2);
+                        break;
+                case 'o':
+                        loadTodo(projectFileNames[cury]); //Index out of range danger
+                        focused = RIGHT;
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
                         curs_set(2);
                         break;
                 default:

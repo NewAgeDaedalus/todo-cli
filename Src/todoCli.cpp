@@ -16,10 +16,9 @@
 #include "taskManagement.h"
 #endif
 
-
-
 int focused, currentProjs;
 std::vector<std::string> projectNames;
+std::vector<std::string> projectFileNames;
 
 int main(int argc, char *argv[]){
         projectNames = *new std::vector<std::string>();
