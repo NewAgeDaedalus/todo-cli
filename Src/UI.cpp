@@ -117,6 +117,13 @@ void drawTaskComp(UI_Comp<Task> comp){
         int cury, curx;
         getyx(stdscr, cury, curx);
         //Draw the task
+        move(comp.domain.y.first, comp.domain.x.first);
+        addstr(comp.obj->desc.c_str());
+        addstr(" ");
+        if (comp.obj->Completed)
+                addstr("T");
+        else
+                addstr("F");
         //restore cursor position
         move(cury, curx);
 }
@@ -125,24 +132,32 @@ void loadTodo(std::string projecFileName){
         std::vector<std::shared_ptr<Task>> taskRoots;
         taskRoots = parseFile(projecFileName);
         taskComps.clear();
-        //Create UI COMPON
+        //Create UI COMPONENT
         int i = 0;
+        //Transverses every tree and creates a UI_Component for every tree node(Task)
         for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
-                std::vector<std::shared_ptr<Task>> stack;
-                int d = 0;
-                stack.push_back(*it);
+                std::vector<std::pair<std::shared_ptr<Task>,int>> stack;
+                stack.push_back(std::pair<std::shared_ptr<Task>,int>(*it, 0));
                 while (!stack.empty()){
-                        std::shared_ptr<Task> cur = stack.back();
+                        std::shared_ptr<Task> cur = stack.back().first;
+                        int d = stack.back().second;
                         stack.pop_back();
-                        struct comp_domain domain(LEFT_RIGHT_BORDER + 5 + d *2, COLS-5, i, i+2);
+                        struct comp_domain domain(LEFT_RIGHT_BORDER + 5 + d *4, COLS-5, i, i+2);
+                        i+=2;
                         taskComps.push_back(UI_Comp<Task>(domain, cur));
                         for (auto it = cur->subTasks.begin(); it != cur->subTasks.end();it++){
-                                stack.push_back(*it);
+                                stack.push_back(std::pair<std::shared_ptr<Task>,int>(*it, d+1));
                         }
                 }
         }
 }
 
+void displayTodo(){
+        for (auto it = taskComps.begin(); it != taskComps.end(); it++){
+                drawTaskComp(*it);
+        }
+        refresh();
+}
 int parseCommandRight(int input_ch){
         int running = 1;
         int curx, cury;
@@ -205,6 +220,7 @@ int parseCommandLeft(int input_ch){
                         break;
                 case 'o':
                         loadTodo(projectFileNames[cury]); //Index out of range danger
+                        displayTodo();
                         focused = RIGHT;
                         highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
                         curs_set(2);

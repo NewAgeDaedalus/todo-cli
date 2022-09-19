@@ -107,4 +107,3 @@ void forEachNodeDo(shared_ptr<Task> curTask, void (*func)(shared_ptr<Task>)){
                 forEachNodeDo(*it, func);
         }
 }
-}
