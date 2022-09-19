@@ -12,7 +12,6 @@
 #include "UI.h"
 #endif
 
-
 #ifndef TASK_MANAGEMENT
 #define TASK_MANAGEMENT
 #include "taskManagement.h"
@@ -129,13 +128,19 @@ void loadTodo(std::string projecFileName){
         //Create UI COMPON
         int i = 0;
         for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
-                struct comp_domain domain(LEFT_RIGHT_BORDER+5,COLS-3, i, i+2);
-                UI_Comp<Task> comp;
-                i+=4;
-                taskComps.push_back(UI_Comp<Task>(domain, *it));
-                drawTaskComp(taskComps.back());
+                std::vector<std::shared_ptr<Task>> stack;
+                int d = 0;
+                stack.push_back(*it);
+                while (!stack.empty()){
+                        std::shared_ptr<Task> cur = stack.back();
+                        stack.pop_back();
+                        struct comp_domain domain(LEFT_RIGHT_BORDER + 5 + d *2, COLS-5, i, i+2);
+                        taskComps.push_back(UI_Comp<Task>(domain, cur));
+                        for (auto it = cur->subTasks.begin(); it != cur->subTasks.end();it++){
+                                stack.push_back(*it);
+                        }
+                }
         }
-        refresh();
 }
 
 int parseCommandRight(int input_ch){
