@@ -100,3 +100,11 @@ vector<shared_ptr<Task>> parseFile(string fileName){
         fclose(fp);
         return tasksRoots;
 }
+
+void forEachNodeDo(shared_ptr<Task> curTask, void (*func)(shared_ptr<Task>)){
+        func(curTask);
+        for (vector<shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
+                forEachNodeDo(*it, func);
+        }
+}
+}
