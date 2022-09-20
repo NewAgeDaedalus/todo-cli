@@ -36,4 +36,4 @@ void displayProject(const char*);
 void displayProjects();
 int parseCommandRight(int);
 int parseCommandLeft(int);
-void highlightProj(int x_from, int x_to, int y_from, int y_to, int mode);
+void highlightProj(int x_from, int x_to, int y_from, int y_to, int color, int mode);

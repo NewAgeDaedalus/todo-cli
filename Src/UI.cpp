@@ -101,12 +101,12 @@ void displayProjects(){
         }
 }
 
-void highlightProj(int x_from, int x_to, int y_from, int y_to, int mode){
+void highlightProj(int x_from, int x_to, int y_from, int y_to, int color, int mode){
         int before_x, before_y;
         getyx(stdscr, before_y, before_x);
         for (int i = y_from; i <= y_to; i++){
                 move(i, x_from);
-                chgat(x_to -x_from+1, mode, COLOR_WHITE, NULL);
+                chgat(x_to -x_from+1, mode, color, NULL);
         }
         move(before_y, before_x);
         refresh();
@@ -158,7 +158,9 @@ void displayTodo(){
         }
         refresh();
 }
+
 int parseCommandRight(int input_ch){
+        static size_t currUiCompIndx = 0;
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
@@ -170,10 +172,36 @@ int parseCommandRight(int input_ch){
                         curx++;
                         break;
                 case 'k':
-                        cury--;
+                        if ( currUiCompIndx > 0 && !taskComps.empty()){
+                                UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
+                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
+                                                curComp->domain.y.first, curComp->domain.y.first,
+                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
+                                                A_NORMAL);
+                                curComp = &taskComps[currUiCompIndx-1];
+                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
+                                                curComp->domain.y.first, curComp->domain.y.first,
+                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
+                                                A_STANDOUT);
+                                cury = curComp->domain.y.first;
+                                currUiCompIndx--;
+                        }
                         break;
                 case 'j':
-                        cury++;
+                        if ( currUiCompIndx < taskComps.size()){
+                                UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
+                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
+                                                curComp->domain.y.first, curComp->domain.y.first,
+                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
+                                                A_NORMAL);
+                                curComp = &taskComps[currUiCompIndx+1];
+                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
+                                                curComp->domain.y.first, curComp->domain.y.first, 
+                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
+                                                A_STANDOUT);
+                                cury = curComp->domain.y.first;
+                                currUiCompIndx++;
+                        }
                         break;
                 case KEY_F(1):
                         running = 0;
@@ -182,8 +210,7 @@ int parseCommandRight(int input_ch){
                         curx = 0;
                         if (cury >= currentProjs)
                                 cury = currentProjs - 1;
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_STANDOUT);
-                        curs_set(0);
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_STANDOUT);
                         focused = LEFT;
                         break;
                 default:
@@ -202,28 +229,28 @@ int parseCommandLeft(int input_ch){
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
         switch (input_ch){
                 case 'k':
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury,COLOR_WHITE, A_NORMAL);
                         cury--;
                         break;
                 case 'j':
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury,COLOR_WHITE, A_NORMAL);
                         cury++;
                         break;
                 case KEY_F(1):
                         running = 0;
                         break;
                 case KEY_RIGHT:
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury,COLOR_WHITE, A_NORMAL);
                         curx = LEFT_RIGHT_BORDER + 1;
+                        cury = 1;
                         focused = RIGHT;
-                        curs_set(2);
                         break;
                 case 'o':
                         loadTodo(projectFileNames[cury]); //Index out of range danger
                         displayTodo();
                         focused = RIGHT;
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, A_NORMAL);
-                        curs_set(2);
+                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury,COLOR_WHITE, A_NORMAL);
+                        cury = 0;
                         break;
                 default:
                         break;
@@ -234,7 +261,7 @@ int parseCommandLeft(int input_ch){
                 cury = currentProjs-1;
         move(cury, curx);
         if (focused != RIGHT)
-                highlightProj(0, LEFT_RIGHT_BORDER -1, cury, cury, A_STANDOUT);
+                highlightProj(0, LEFT_RIGHT_BORDER -1, cury, cury,COLOR_WHITE,A_STANDOUT);
         refresh();
         return running;
 }

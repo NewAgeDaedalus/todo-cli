@@ -29,7 +29,7 @@ int main(int argc, char *argv[]){
         move(0, LEFT_RIGHT_BORDER);
         vline(ACS_VLINE, LINES);
         move(0, 0);
-        highlightProj(0, LEFT_RIGHT_BORDER - 1, 0, 0, A_STANDOUT);
+        highlightProj(0, LEFT_RIGHT_BORDER - 1, 0, 0, COLOR_WHITE, A_STANDOUT);
         curs_set(0);
         refresh();
         int running = 1;
