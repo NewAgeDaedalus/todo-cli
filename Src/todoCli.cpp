@@ -16,7 +16,7 @@
 #include "taskManagement.h"
 #endif
 
-int focused, currentProjs;
+int focused, currentProjs, curentProjIndx;
 std::vector<std::string> projectNames;
 std::vector<std::string> projectFileNames;
 

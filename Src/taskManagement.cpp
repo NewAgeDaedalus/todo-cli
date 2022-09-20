@@ -1,4 +1,6 @@
+#include <fstream>
 #include <iostream>
+#include <istream>
 #include <string>
 #include <stdio.h>
 #include <utility>
@@ -15,6 +17,9 @@
 using std::vector; 
 using std::string;
 using std::shared_ptr;
+
+
+vector<shared_ptr<Task>> taskRoots;
 
 //###########################[Task class methods]#########################
 
@@ -34,7 +39,7 @@ Task::Task(){
 
 //###########################[Static functions]#############################
 
-Task * createTask_discon(string line){
+static Task * createTask_discon(string line){
         int prefixLen = line.find_first_not_of('#');
         bool done = false;
         string desc;
@@ -43,7 +48,7 @@ Task * createTask_discon(string line){
         return new Task(desc, done);
 }
 
-void printTaskTree(shared_ptr<Task> curTask, int d){
+static void printTaskTree(shared_ptr<Task> curTask, int d){
         for (int i = 0; i < d; i++)
                 std::cout<<" ";
         std::cout << curTask->desc <<"\n";
@@ -101,9 +106,23 @@ vector<shared_ptr<Task>> parseFile(string fileName){
         return tasksRoots;
 }
 
-void forEachNodeDo(shared_ptr<Task> curTask, void (*func)(shared_ptr<Task>)){
-        func(curTask);
+template <typename F>
+void forEachNodeDo(shared_ptr<Task> curTask, F&& func, int d){
+        func(curTask, d);
         for (vector<shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
-                forEachNodeDo(*it, func);
+                forEachNodeDo(*it, func, d+1);
+        }
+}
+
+void saveProj(string projFile, string projName){
+        std::ofstream file(projFile);
+        file << projName;//proj name contains \n
+        auto func = [&](shared_ptr<Task> curTask, int d){
+                for (int i = 0; i < d; i++)
+                        file << "#";
+                file << curTask->desc << " " << (curTask->Completed? "1":"0")<<"\n";
+        };
+        for (auto it = taskRoots.begin(); it != taskRoots.end();it++){
+                forEachNodeDo(*it, func, 1);
         }
 }

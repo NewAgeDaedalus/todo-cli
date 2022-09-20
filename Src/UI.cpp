@@ -17,6 +17,16 @@
 #include "taskManagement.h"
 #endif
 
+
+//Should be part of taskManagement
+template <typename F>
+void forEachNodeDo(std::shared_ptr<Task> curTask, F&& func, int d){
+        func(curTask, d);
+        for (std::vector<std::shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
+                forEachNodeDo(*it, func, d+1);
+        }
+}
+
 comp_domain::comp_domain(int x_from, int x_to, int y_from, int y_to){
         x.first = x_from;
         x.second = x_to;
@@ -42,9 +52,10 @@ UI_Comp<T>::UI_Comp(){
         obj = nullptr;
 }
 
-extern int focused, currentProjs;
+extern int focused, currentProjs, curentProjIndx;
 extern std::vector<std::string> projectNames;
 extern std::vector<std::string> projectFileNames;
+extern std::vector<std::shared_ptr<Task>> taskRoots;
 std::vector<UI_Comp<Task>> taskComps;
 
 void initCurses(){
@@ -130,7 +141,7 @@ void drawTaskComp(UI_Comp<Task> comp){
 }
 
 void loadTodo(std::string projecFileName){
-        std::vector<std::shared_ptr<Task>> taskRoots;
+        taskRoots.clear();
         taskRoots = parseFile(projecFileName);
         taskComps.clear();
         //Create UI COMPONENT
@@ -160,18 +171,14 @@ void displayTodo(){
         refresh();
 }
 
+
 int parseCommandRight(int input_ch){
         static size_t currUiCompIndx = 0;
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
         switch (input_ch){
-                case 'h':
-                        curx--;
-                        break;
-                case 'l':
-                        curx++;
-                        break;
+                //move up
                 case 'k':
                         //Ugly should probably be put into a helper function
                         if ( currUiCompIndx > 0 && !taskComps.empty()){
@@ -189,6 +196,7 @@ int parseCommandRight(int input_ch){
                                 currUiCompIndx--;
                         }
                         break;
+                //move down
                 case 'j':
                         //Ugly should probably be put into a helper function
                         if ( currUiCompIndx < taskComps.size()-1){
@@ -206,9 +214,38 @@ int parseCommandRight(int input_ch){
                                 currUiCompIndx++;
                         }
                         break;
+                //set a task and all of its subtasks to complete
+                case 't':{
+                        auto func = [&](std::shared_ptr<Task> cur, int d){
+                                cur->Completed = true;
+                                (void) d;
+                        };
+                        forEachNodeDo(taskComps[currUiCompIndx].obj, func, 0);
+                        move(0,0);
+                        displayProjects();
+                        move(0, LEFT_RIGHT_BORDER);
+                        vline(ACS_VLINE, LINES);
+                        move(cury, curx);
+                        displayTodo();
+                        break;
+                }
+                //Set a task to incomplete
+                case 'n': 
+                        taskComps[currUiCompIndx].obj->Completed = false;
+                        move(0,0);
+                        displayProjects();
+                        move(0, LEFT_RIGHT_BORDER);
+                        vline(ACS_VLINE, LINES);
+                        move(cury, curx);
+                        displayTodo();
+                        break;
+                case 's':
+                        saveProj(projectFileNames[curentProjIndx],projectNames[curentProjIndx]);
+                        break;
                 case KEY_F(1):
                         running = 0;
                         break;
+                //Switch focus to select projects
                 case KEY_LEFT:
                         curx = 0;
                         if (cury >= currentProjs)
@@ -255,6 +292,7 @@ int parseCommandLeft(int input_ch){
                         move(0, LEFT_RIGHT_BORDER);
                         vline(ACS_VLINE, LINES);
                         move(cury, curx);
+                        curentProjIndx = cury;
                         loadTodo(projectFileNames[cury]); //Index out of range danger
                         displayTodo();
                         focused = RIGHT;
