@@ -58,6 +58,7 @@ extern std::vector<std::string> projectNames;
 extern std::vector<std::string> projectFileNames;
 extern std::vector<std::shared_ptr<Task>> taskRoots;
 std::vector<UI_Comp<Task>> taskComps;
+static size_t currUiCompIndx = 0;
 
 void initCurses(){
         initscr();
@@ -141,12 +142,9 @@ void drawTaskComp(UI_Comp<Task> comp){
         move(cury, curx);
 }
 
-void loadTodo(std::string projecFileName){
-        taskRoots.clear();
-        taskRoots = parseFile(projecFileName);
-        taskComps.clear();
-        //Create UI COMPONENT
+void createUiComps(){
         int i = 0;
+        taskComps.clear();
         //Transverses every tree and creates a UI_Component for every tree node(Task)
         for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
                 std::vector<std::pair<std::shared_ptr<Task>,int>> stack;
@@ -163,6 +161,12 @@ void loadTodo(std::string projecFileName){
                         }
                 }
         }
+}
+
+void loadTodo(std::string projecFileName){
+        taskRoots.clear();
+        taskRoots = parseFile(projecFileName);
+        createUiComps();
 }
 
 void displayTodo(){
@@ -222,11 +226,63 @@ void renameTask(UI_Comp<Task> &comp){
         curs_set(0);
         move(cury, curx);
         refresh();
+}
 
+void createNewTask(UI_Comp<Task> &comp, bool newRoot){
+        if (newRoot){
+                taskRoots.push_back(std::shared_ptr<Task>(new Task("", false)));
+        }
+        else{
+                comp.obj->subTasks.push_back(std::shared_ptr<Task>(new Task("", false))); 
+        }
+        createUiComps();
+        clear();
+        move(0, 0);
+        displayProjects();
+        move(0, LEFT_RIGHT_BORDER);
+        vline(ACS_VLINE, LINES);
+        displayTodo();
+        for (auto  it = taskComps.begin(); it != taskComps.end(); it++)
+                if (it->obj->desc == ""){
+                        renameTask(*it);
+                        break;
+                }
+}
+
+void deleteTask(UI_Comp<Task> &comp){
+        auto func = [&,comp](std::shared_ptr<Task> curTask, int d){
+                for (auto subTask = curTask->subTasks.begin(); subTask != curTask->subTasks.end();
+                                subTask++)
+                        if ((*subTask)->desc == comp.obj->desc){
+                                curTask->subTasks.erase(subTask);
+                                break;
+                        }
+        };
+        for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
+                if ( (*it)->desc ==comp.obj->desc){
+                        taskRoots.erase(it);
+                        break;
+                }
+                else{
+                        forEachNodeDo(*it, func, 0);
+                }
+        }
+        for (auto it = taskComps.begin(); it != taskComps.end(); it++){
+                if ( it->obj == comp.obj){
+                        taskComps.erase(it);
+                        break;
+                }
+        }
+        createUiComps();
+        clear();
+        move(0, 0);
+        displayProjects();
+        move(0, LEFT_RIGHT_BORDER);
+        vline(ACS_VLINE, LINES);
+        displayTodo();
 }
 
 int parseCommandRight(int input_ch){
-        static size_t currUiCompIndx = 0;
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
@@ -297,6 +353,15 @@ int parseCommandRight(int input_ch){
                         break;
                 case 'r':
                         renameTask(taskComps[currUiCompIndx]);
+                        break;
+                case 'a':
+                        createNewTask(taskComps[currUiCompIndx], false);
+                        break;
+                case 'A':
+                        createNewTask(taskComps[currUiCompIndx], true);
+                        break;
+                case 'd':
+                        deleteTask(taskComps[currUiCompIndx]);
                         break;
                 case KEY_F(1):
                         running = 0;
