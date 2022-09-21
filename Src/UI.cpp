@@ -1,5 +1,6 @@
 #include <curses.h> 
 #include <dirent.h>
+#include <sstream>
 #include <string.h>
 #include <stdlib.h>
 #include <iostream>
@@ -171,6 +172,58 @@ void displayTodo(){
         refresh();
 }
 
+void renameTask(UI_Comp<Task> &comp){
+        std::stringstream s;
+        //save current pos
+        int cury, curx; 
+        getyx(stdscr, cury, curx);
+        //move to beginning of the text
+        move(comp.domain.y.first, comp.domain.x.first);
+        curs_set(2);
+        clrtoeol();
+        move(comp.domain.y.first, comp.domain.x.first);
+        int input_ch;
+        bool running = true;
+        while (running){
+                input_ch = getch();
+                switch (input_ch) {
+                        //Accept the rename, ENTER
+                        case 10:
+                                comp.obj->desc = s.str();
+                                running = false;
+                                break;
+                        //Discard the rename, ESC
+                        case 27:
+                                running = false;
+                                break;
+                        case KEY_BACKSPACE:
+                                int cury, curx;
+                                getyx(stdscr, cury, curx);
+                                move(cury, curx-1);
+                                clrtoeol();
+                                s.seekp(-1, s.cur);
+                                break;
+                        default:
+                                if ( (input_ch >= 'a' && input_ch <= 'z') || 
+                                                (input_ch >= 'A' && input_ch <= 'Z') ||
+                                                (input_ch >= '0' && input_ch <= '9') ||
+                                                input_ch == ' '
+                                                ){
+                                        s << (char)input_ch;
+                                        addch(input_ch);
+                                }
+                                break;
+                }
+        }
+        move(comp.domain.y.first, comp.domain.x.first);
+        addstr(comp.obj->desc.c_str());
+        addch(' ');
+        addch(comp.obj->Completed? 'T':'F');
+        curs_set(0);
+        move(cury, curx);
+        refresh();
+
+}
 
 int parseCommandRight(int input_ch){
         static size_t currUiCompIndx = 0;
@@ -241,6 +294,9 @@ int parseCommandRight(int input_ch){
                         break;
                 case 's':
                         saveProj(projectFileNames[curentProjIndx],projectNames[curentProjIndx]);
+                        break;
+                case 'r':
+                        renameTask(taskComps[currUiCompIndx]);
                         break;
                 case KEY_F(1):
                         running = 0;
