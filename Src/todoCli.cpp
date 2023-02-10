@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cursesw.h>
+#include <memory>
 #include <string.h>
 #include <string>
 #include <unistd.h>
@@ -16,20 +17,24 @@
 #include "taskManagement.h"
 #endif
 
-int focused, currentProjs, curentProjIndx;
-std::vector<std::string> projectNames;
-std::vector<std::string> projectFileNames;
+#ifndef PROJECT
+#define PROJECT
+#include "project.h"
+#endif
+
+int focused, currentProjs, current_project_index;
+std::vector<std::shared_ptr<Project>> projects;
 
 int main(int argc, char *argv[]){
-        projectNames = *new std::vector<std::string>();
         chdir("Data");
         initCurses();
-        loadProjects();
+        loadProjects(projects);
+	std::cout<<projects.size()<<"\n";
+	generate_project_comps(projects);
         displayProjects();
         move(0, LEFT_RIGHT_BORDER);
         vline(ACS_VLINE, LINES);
         move(0, 0);
-        highlightProj(0, LEFT_RIGHT_BORDER - 1, 0, 0, COLOR_WHITE, A_STANDOUT);
         curs_set(0);
         refresh();
         int running = 1;

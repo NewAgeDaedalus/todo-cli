@@ -14,6 +14,11 @@
 #include "taskManagement.h"
 #endif
 
+#ifndef UTILS
+#define UTILS
+#include "utils.h"
+#endif
+
 using std::vector; 
 using std::string;
 using std::shared_ptr;
@@ -106,14 +111,7 @@ vector<shared_ptr<Task>> parseFile(string fileName){
         return tasksRoots;
 }
 
-template <typename F>
-void forEachNodeDo(shared_ptr<Task> curTask, F&& func, int d){
-        func(curTask, d);
-        for (vector<shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
-                forEachNodeDo(*it, func, d+1);
-        }
-}
-
+//Should not be here
 void saveProj(string projFile, string projName){
         std::ofstream file(projFile);
         file << projName;//proj name contains \n

@@ -13,6 +13,5 @@ class Task{
 };
 
 std::vector<std::shared_ptr<Task>> parseFile(std::string fileName);
-template <typename F>
-void forEachNodeDo(std::shared_ptr<Task> curTask, F&& func, int d);
+//Should not be here
 void saveProj(std::string projFile, std::string projName);

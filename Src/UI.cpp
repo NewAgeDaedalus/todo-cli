@@ -18,14 +18,17 @@
 #include "taskManagement.h"
 #endif
 
-//Should be part of taskManagement
-template <typename F>
-void forEachNodeDo(std::shared_ptr<Task> curTask, F&& func, int d){
-        func(curTask, d);
-        for (std::vector<std::shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
-                forEachNodeDo(*it, func, d+1);
-        }
-}
+#ifndef PROJECT
+#define PROJECT
+#include "project.h"
+#endif
+
+#ifndef UTILS
+#define UTILS
+#include "utils.h"
+#endif
+
+using std::shared_ptr;
 
 //########################################[COMP_DOMAIN METHODS]##############################
 
@@ -54,11 +57,52 @@ UI_Comp<T>::UI_Comp(){
         obj = nullptr;
 }
 
+template<>
+void UI_Comp<Task>::draw_content(){
+	int cury, curx;
+        getyx(stdscr, cury, curx);
+        //Draw the task
+        move(domain.y.first, domain.x.first);
+        addstr(obj->desc.c_str());
+        addstr(" ");
+        if (obj->Completed)
+                addstr("T");
+        else
+                addstr("F");
+        //restore cursor position
+        move(cury, curx);
+}
+
+template<>
+void UI_Comp<Project>::draw_content(){
+	int cury, curx;
+        getyx(stdscr, cury, curx);
+        //Draw the task
+        move(domain.y.first, domain.x.first);
+        addstr(obj->name.c_str());
+        addstr(" ");
+        //restore cursor position
+        move(cury, curx);
+
+}
+
+template<typename T>
+void UI_Comp<T>::highlight(int color, int mode){
+        int before_x, before_y;
+        getyx(stdscr, before_y, before_x);
+        for (int i = domain.y.first; i < domain.y.second; i++){
+                move(i, domain.x.first);
+                chgat(domain.x.second - domain.x.first+1, mode, color, NULL);
+        }
+        move(before_y, before_x);
+        refresh();
+}
+
 //########################################[EXTERNAL DATA]##############################
-extern int focused, currentProjs, curentProjIndx;
-extern std::vector<std::string> projectNames;
-extern std::vector<std::string> projectFileNames;
+extern int focused, current_project_index;
+
 extern std::vector<std::shared_ptr<Task>> taskRoots;
+std::vector<shared_ptr<UI_Comp<Project>>> project_comps;
 
 //########################################[INTERNAL DATA]##############################
 std::vector<UI_Comp<Task>> taskComps;
@@ -67,7 +111,7 @@ static size_t currUiCompIndx = 0;
 //########################################[STATIC FUNCTION PROTOTYPES]##############################
 void drawTaskComp(UI_Comp<Task> comp);
 void createUiComps();
-void loadTodo(std::string projecFileName);
+void loadTodo(Project &project);
 void displayTodo();
 void renameTask(UI_Comp<Task> &comp);
 void createNewTask(UI_Comp<Task> &comp, bool newRoot);
@@ -83,84 +127,35 @@ void initCurses(){
         clear();
 }
 
-//Should not be here
-int loadProject(char *fileName){
-        int retVal = 0;
-        size_t n = 0;
-        char *projName;
-        FILE *fp = fopen(fileName, "r");
-        if (fp == NULL){
-                return 1;
-        }
-        getline(&projName, &n, fp);
-        projectNames.push_back(projName);
-        fclose(fp);
-        free(projName);
-        return retVal;
-}
-
-int loadProjects(){
-        int retVal = 0;
-        struct dirent **nameList;
-        int n = scandir(".", &nameList, NULL, alphasort);
-        if (n == -1){
-                return 1;
-        }
-        while (n--){
-                if (nameList[n]->d_name[0] == '.')
-                        continue;
-                projectFileNames.push_back(nameList[n]->d_name);
-                loadProject(nameList[n]->d_name);
-                free(nameList[n]);
-        }
-        free(nameList);
-        return retVal;
-}
-
-void displayProject(const char *projName){
-        move(++currentProjs - 1, 0);
-        addstr(projName);
-        move(0, 0);
-        refresh();
+void generate_project_comps(std::vector<std::shared_ptr<Project>> projects){
+	int i = 0;
+	for (auto project:projects){
+		struct comp_domain domain = comp_domain(0, COLS/4, i, i+1);
+		i++;
+		project_comps.push_back(shared_ptr<UI_Comp<Project>>(new UI_Comp<Project>(domain, project)));
+	}
 }
 
 void displayProjects(){
-        currentProjs = 0;
-        for (auto name =  projectNames.begin(); name != projectNames.end(); name++){
-                displayProject(name->c_str());
-        }
+	for (auto project_comp:project_comps){
+		project_comp->draw_content();
+	}
 }
 
-void highlightProj(int x_from, int x_to, int y_from, int y_to, int color, int mode){
-        int before_x, before_y;
-        getyx(stdscr, before_y, before_x);
-        for (int i = y_from; i <= y_to; i++){
-                move(i, x_from);
-                chgat(x_to -x_from+1, mode, color, NULL);
-        }
-        move(before_y, before_x);
-        refresh();
-}
-
+//Should maybe be in the main file
 int parseCommandRight(int input_ch){
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
+	UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
         switch (input_ch){
                 //move up
                 case 'k':
                         //Ugly should probably be put into a helper function
                         if ( currUiCompIndx > 0 && !taskComps.empty()){
-                                UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
-                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
-                                                curComp->domain.y.first, curComp->domain.y.first,
-                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
-                                                A_NORMAL);
+				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
                                 curComp = &taskComps[currUiCompIndx-1];
-                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
-                                                curComp->domain.y.first, curComp->domain.y.first,
-                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
-                                                A_STANDOUT);
+				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
                                 cury = curComp->domain.y.first;
                                 currUiCompIndx--;
                         }
@@ -169,16 +164,9 @@ int parseCommandRight(int input_ch){
                 case 'j':
                         //Ugly should probably be put into a helper function
                         if ( currUiCompIndx < taskComps.size()-1){
-                                UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
-                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
-                                                curComp->domain.y.first, curComp->domain.y.first,
-                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
-                                                A_NORMAL);
+				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
                                 curComp = &taskComps[currUiCompIndx+1];
-                                highlightProj(curComp->domain.x.first, curComp->domain.x.second,
-                                                curComp->domain.y.first, curComp->domain.y.first, 
-                                                curComp->obj->Completed?COLOR_GREEN:COLOR_RED,
-                                                A_STANDOUT);
+				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
                                 cury = curComp->domain.y.first;
                                 currUiCompIndx++;
                         }
@@ -209,7 +197,7 @@ int parseCommandRight(int input_ch){
                         displayTodo();
                         break;
                 case 's':
-                        saveProj(projectFileNames[curentProjIndx],projectNames[curentProjIndx]);
+			project_comps[current_project_index]->obj->save_project(taskRoots);
                         break;
                 case 'r':
                         renameTask(taskComps[currUiCompIndx]);
@@ -229,9 +217,8 @@ int parseCommandRight(int input_ch){
                 //Switch focus to select projects
                 case KEY_LEFT:
                         curx = 0;
-                        if (cury >= currentProjs)
-                                cury = currentProjs - 1;
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_STANDOUT);
+                        if (cury >= current_project_index)
+                                cury = current_project_index - 1;
                         focused = LEFT;
                         break;
                 default:
@@ -248,20 +235,28 @@ int parseCommandLeft(int input_ch){
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
+	UI_Comp<Project> &cur_project = *project_comps[current_project_index];
         switch (input_ch){
                 case 'k':
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_NORMAL);
+			if (current_project_index == 0)
+				break;
+			cur_project.highlight(COLOR_WHITE, A_NORMAL);
                         cury--;
+			current_project_index--;
+			project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
                 case 'j':
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_NORMAL);
+			if (current_project_index == project_comps.size() - 1)
+				break;
+			cur_project.highlight(COLOR_WHITE, A_NORMAL);
                         cury++;
+			current_project_index++;
+			project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
                 case KEY_F(1):
                         running = 0;
                         break;
                 case KEY_RIGHT:
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_NORMAL);
                         curx = LEFT_RIGHT_BORDER + 1;
                         cury = 1;
                         focused = RIGHT;
@@ -273,12 +268,12 @@ int parseCommandLeft(int input_ch){
                         move(0, LEFT_RIGHT_BORDER);
                         vline(ACS_VLINE, LINES);
                         move(cury, curx);
-                        curentProjIndx = cury;
-                        loadTodo(projectFileNames[cury]); //Index out of range danger
+                        current_project_index = cury;
+                        loadTodo(*cur_project.obj); //Index out of range danger
                         displayTodo();
                         focused = RIGHT;
-                        highlightProj(0, LEFT_RIGHT_BORDER - 1, cury, cury, COLOR_WHITE, A_NORMAL);
                         cury = 0;
+			currUiCompIndx = 0;
                         break;
 		case 'n'://create a new project
 			
@@ -287,17 +282,18 @@ int parseCommandLeft(int input_ch){
         }
         if (curx >= LEFT_RIGHT_BORDER && focused != RIGHT)
                 curx = LEFT_RIGHT_BORDER - 1;
-        if (cury >= currentProjs)
-                cury = currentProjs-1;
+        if (cury >= current_project_index)
+                cury = current_project_index-1;
         move(cury, curx);
-        if (focused != RIGHT)
-                highlightProj(0, LEFT_RIGHT_BORDER -1, cury, cury,COLOR_WHITE,A_STANDOUT);
+//         if (focused != RIGHT)
+//                 highlightProj(0, LEFT_RIGHT_BORDER -1, cury, cury,COLOR_WHITE,A_STANDOUT);
         refresh();
         return running;
 }
 
 //########################################[STATIC FUNCTION DEFINITIONS]##############################
 
+//UI_Comp should have a draw or display method
 void drawTaskComp(UI_Comp<Task> comp){
         //Save the current cursor position
         int cury, curx;
@@ -335,9 +331,9 @@ void createUiComps(){
         }
 }
 
-void loadTodo(std::string projecFileName){
+void loadTodo(Project &project){
         taskRoots.clear();
-        taskRoots = parseFile(projecFileName);
+        taskRoots = parseFile(project.file_name);
         createUiComps();
 }
 
@@ -415,7 +411,7 @@ void createNewTask(UI_Comp<Task> &comp, bool newRoot){
         move(0, LEFT_RIGHT_BORDER);
         vline(ACS_VLINE, LINES);
         displayTodo();
-        for (auto  it = taskComps.begin(); it != taskComps.end(); it++)
+        for (auto it = taskComps.begin(); it != taskComps.end(); it++)
                 if (it->obj->desc == ""){
                         renameTask(*it);
                         break;

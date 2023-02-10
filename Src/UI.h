@@ -1,5 +1,8 @@
 #include <vector>
+#include <concepts>
 #include <memory>
+
+
 //########################################[Definitions]##############################
 
 #define LEFT  0
@@ -9,6 +12,7 @@
 //########################################[Macros]##############################
 
 //########################################[Structures]##############################
+class Project;
 struct comp_domain{
         std::pair<int, int> x;
         std::pair<int, int> y;
@@ -25,15 +29,14 @@ class UI_Comp{
         std::shared_ptr<T> obj; 
         UI_Comp(struct comp_domain Domain, std::shared_ptr<T> Obj);
         UI_Comp();
+	void draw_content();
+	void highlight(int color, int mode);
 };
 
 //########################################[Functions]##############################
 
 void initCurses();
-int loadProject(char *fileName);
-int loadProjects();
-void displayProject(const char*);
 void displayProjects();
+void generate_project_comps(std::vector<std::shared_ptr<Project>> projects);
 int parseCommandRight(int);
 int parseCommandLeft(int);
-void highlightProj(int x_from, int x_to, int y_from, int y_to, int color, int mode);
