@@ -4,7 +4,7 @@
 class Task{
         public:
         bool Completed = false;
-        std::string desc = ""; 
+        std::string name = ""; 
         std::vector<std::shared_ptr<Task>> subTasks;
 //###################[Constructors]##########################
         Task();

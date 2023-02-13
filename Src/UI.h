@@ -1,6 +1,7 @@
 #include <vector>
 #include <concepts>
 #include <memory>
+#include <string>
 
 
 //########################################[Definitions]##############################
@@ -31,6 +32,7 @@ class UI_Comp{
         UI_Comp();
 	void draw_content();
 	void highlight(int color, int mode);
+	void rename();
 };
 
 //########################################[Functions]##############################

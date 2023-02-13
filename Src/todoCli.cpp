@@ -22,7 +22,7 @@
 #include "project.h"
 #endif
 
-int focused, currentProjs, current_project_index;
+int focused, current_project_index, highlighted_project_index;
 std::vector<std::shared_ptr<Project>> projects;
 
 int main(int argc, char *argv[]){

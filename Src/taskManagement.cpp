@@ -29,16 +29,16 @@ vector<shared_ptr<Task>> taskRoots;
 //###########################[Task class methods]#########################
 
 Task::Task(string Desc, bool completed){
-        desc = Desc;
+        name = Desc;
         Completed = completed;
 }
 
 Task::Task(string Desc){
-        desc = Desc;
+        name = Desc;
 }
 
 Task::Task(){
-        desc ="";
+        name ="";
         Completed = false;
 }
 
@@ -56,7 +56,7 @@ static Task * createTask_discon(string line){
 static void printTaskTree(shared_ptr<Task> curTask, int d){
         for (int i = 0; i < d; i++)
                 std::cout<<" ";
-        std::cout << curTask->desc <<"\n";
+        std::cout << curTask->name <<"\n";
         for (vector<shared_ptr<Task>>::iterator it = curTask->subTasks.begin(); it != (curTask->subTasks).end(); it++){
                 printTaskTree(*it, d+1);
         }
@@ -115,10 +115,11 @@ vector<shared_ptr<Task>> parseFile(string fileName){
 void saveProj(string projFile, string projName){
         std::ofstream file(projFile);
         file << projName;//proj name contains \n
+	file << "\n\n\n" << "\n\n\n";
         auto func = [&](shared_ptr<Task> curTask, int d){
                 for (int i = 0; i < d; i++)
                         file << "#";
-                file << curTask->desc << " " << (curTask->Completed? "1":"0")<<"\n";
+                file << curTask->name << " " << (curTask->Completed? "1":"0")<<"\n";
         };
         for (auto it = taskRoots.begin(); it != taskRoots.end();it++){
                 forEachNodeDo(*it, func, 1);

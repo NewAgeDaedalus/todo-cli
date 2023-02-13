@@ -1,6 +1,8 @@
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <memory>
+#include <sstream>
 #include <stdio.h>
 #include <string>
 #include <unistd.h>
@@ -35,6 +37,7 @@ Project::Project(std::string file_name){
 	char *proj_name;
 	getline(&proj_name, &n, fp);
 	name = std::string(proj_name);
+	name.pop_back();
 	fclose(fp);
 }
 
@@ -57,22 +60,45 @@ Project::Project(std::string file_name, std::string project_name){
 
 void Project::save_project(std::vector<std::shared_ptr<Task>> &taskRoots){
 	std::ofstream file(file_name);
-        file << name;//proj name contains \n
+        file << name << "\n";//proj name contains \n
         auto func = [&](shared_ptr<Task> curTask, int d){
                 for (int i = 0; i < d; i++)
                         file << "#";
-                file << curTask->desc << " " << (curTask->Completed? "1":"0")<<"\n";
+                file << curTask->name << " " << (curTask->Completed? "1":"0")<<"\n";
         };
         for (auto it = taskRoots.begin(); it != taskRoots.end();it++){
                 forEachNodeDo(*it, func, 1);
         }
+	file.close();
 
+}
+
+void Project::save_project(){
+	std::ifstream file_input(file_name);
+	char ch;
+	do {
+		ch = file_input.get();
+		if (ch == EOF)
+			return;
+	} while(ch != '\n');
+	std::stringstream s;
+	do {
+		ch = file_input.get();
+		if (ch == EOF)
+			break;
+		s << ch;
+	}while(1337);
+	file_input.close();
+	std::ofstream file(file_name);
+        file << name << "\n";//proj name contains \n
+	std::string str = s.str();
+	file << str;
+	file.close();
 }
 
 void Project::rename_project(std::string new_name){
 	name = new_name;
 }
-
 
 void loadProjects(std::vector<shared_ptr<Project>> &projects){
         struct dirent **nameList;

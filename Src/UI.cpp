@@ -63,7 +63,7 @@ void UI_Comp<Task>::draw_content(){
         getyx(stdscr, cury, curx);
         //Draw the task
         move(domain.y.first, domain.x.first);
-        addstr(obj->desc.c_str());
+        addstr(obj->name.c_str());
         addstr(" ");
         if (obj->Completed)
                 addstr("T");
@@ -86,6 +86,58 @@ void UI_Comp<Project>::draw_content(){
 
 }
 
+template <typename T>
+void UI_Comp<T>::rename(){
+	std::stringstream s;
+        //save current pos
+        int cury, curx; 
+        getyx(stdscr, cury, curx);
+        //move to beginning of the text
+        move(domain.y.first, domain.x.first);
+        curs_set(2);
+        clrtoeol();
+        move(domain.y.first, domain.x.first);
+        int input_ch;
+	//should all be a function for itself
+        bool running = true;
+        while (running){
+                input_ch = getch();
+                switch (input_ch) {
+                        //Accept the rename, ENTER
+                        case 10:
+                                obj->name = s.str();
+                                running = false;
+                                break;
+                        //Discard the rename, ESC
+                        case 27:
+                                running = false;
+                                break;
+                        case KEY_BACKSPACE:
+                                int cury, curx;
+                                getyx(stdscr, cury, curx);
+                                move(cury, curx-1);
+                                clrtoeol();
+                                s.seekp(-1, s.cur);
+                                break;
+                        default:
+                                if ( (input_ch >= 'a' && input_ch <= 'z') || 
+                                                (input_ch >= 'A' && input_ch <= 'Z') ||
+                                                (input_ch >= '0' && input_ch <= '9') ||
+                                                input_ch == ' '
+                                                ){
+                                        s << (char)input_ch;
+                                        addch(input_ch);
+                                }
+                                break;
+                }
+        }
+	move(domain.y.first, domain.x.first);
+        addstr(obj->name.c_str());
+        curs_set(0);
+        move(cury, curx);
+        refresh();
+}
+
 template<typename T>
 void UI_Comp<T>::highlight(int color, int mode){
         int before_x, before_y;
@@ -99,14 +151,14 @@ void UI_Comp<T>::highlight(int color, int mode){
 }
 
 //########################################[EXTERNAL DATA]##############################
-extern int focused, current_project_index;
+extern int focused, current_project_index, highlighted_project_index;
 
 extern std::vector<std::shared_ptr<Task>> taskRoots;
 std::vector<shared_ptr<UI_Comp<Project>>> project_comps;
 
 //########################################[INTERNAL DATA]##############################
 std::vector<UI_Comp<Task>> taskComps;
-static size_t currUiCompIndx = 0;
+static size_t curr_task_comp_index = 0;
 
 //########################################[STATIC FUNCTION PROTOTYPES]##############################
 void drawTaskComp(UI_Comp<Task> comp);
@@ -147,28 +199,28 @@ int parseCommandRight(int input_ch){
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
-	UI_Comp<Task> *curComp = &taskComps[currUiCompIndx];
+	UI_Comp<Task> *curComp = &taskComps[curr_task_comp_index];
         switch (input_ch){
                 //move up
                 case 'k':
                         //Ugly should probably be put into a helper function
-                        if ( currUiCompIndx > 0 && !taskComps.empty()){
+                        if ( curr_task_comp_index > 0 && !taskComps.empty()){
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
-                                curComp = &taskComps[currUiCompIndx-1];
+                                curComp = &taskComps[curr_task_comp_index-1];
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
                                 cury = curComp->domain.y.first;
-                                currUiCompIndx--;
+                                curr_task_comp_index--;
                         }
                         break;
                 //move down
                 case 'j':
                         //Ugly should probably be put into a helper function
-                        if ( currUiCompIndx < taskComps.size()-1){
+                        if ( curr_task_comp_index < taskComps.size()-1){
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
-                                curComp = &taskComps[currUiCompIndx+1];
+                                curComp = &taskComps[curr_task_comp_index+1];
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
                                 cury = curComp->domain.y.first;
-                                currUiCompIndx++;
+                                curr_task_comp_index++;
                         }
                         break;
                 //set a task and all of its subtasks to complete
@@ -177,7 +229,7 @@ int parseCommandRight(int input_ch){
                                 cur->Completed = true;
                                 (void) d;
                         };
-                        forEachNodeDo(taskComps[currUiCompIndx].obj, func, 0);
+                        forEachNodeDo(taskComps[curr_task_comp_index].obj, func, 0);
                         move(0,0);
                         displayProjects();
                         move(0, LEFT_RIGHT_BORDER);
@@ -188,7 +240,7 @@ int parseCommandRight(int input_ch){
                 }
                 //Set a task to incomplete
                 case 'n': 
-                        taskComps[currUiCompIndx].obj->Completed = false;
+                        taskComps[curr_task_comp_index].obj->Completed = false;
                         move(0,0);
                         displayProjects();
                         move(0, LEFT_RIGHT_BORDER);
@@ -200,16 +252,17 @@ int parseCommandRight(int input_ch){
 			project_comps[current_project_index]->obj->save_project(taskRoots);
                         break;
                 case 'r':
-                        renameTask(taskComps[currUiCompIndx]);
-                        break;
+//                         renameTask(taskComps[curr_task_comp_index]);
+			curComp->rename();
+			break;
                 case 'a':
-                        createNewTask(taskComps[currUiCompIndx], false);
+                        createNewTask(taskComps[curr_task_comp_index], false);
                         break;
                 case 'A':
-                        createNewTask(taskComps[currUiCompIndx], true);
+                        createNewTask(taskComps[curr_task_comp_index], true);
                         break;
                 case 'd':
-                        deleteTask(taskComps[currUiCompIndx]);
+                        deleteTask(taskComps[curr_task_comp_index]);
                         break;
                 case KEY_F(1):
                         running = 0;
@@ -238,20 +291,20 @@ int parseCommandLeft(int input_ch){
 	UI_Comp<Project> &cur_project = *project_comps[current_project_index];
         switch (input_ch){
                 case 'k':
-			if (current_project_index == 0)
+			if (highlighted_project_index == 0)
 				break;
-			cur_project.highlight(COLOR_WHITE, A_NORMAL);
+			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury--;
-			current_project_index--;
-			project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+			highlighted_project_index--;
+			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
                 case 'j':
-			if (current_project_index == project_comps.size() - 1)
+			if (highlighted_project_index == project_comps.size() - 1)
 				break;
-			cur_project.highlight(COLOR_WHITE, A_NORMAL);
+			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury++;
-			current_project_index++;
-			project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+			highlighted_project_index++;
+			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
                 case KEY_F(1):
                         running = 0;
@@ -273,8 +326,14 @@ int parseCommandLeft(int input_ch){
                         displayTodo();
                         focused = RIGHT;
                         cury = 0;
-			currUiCompIndx = 0;
+			curr_task_comp_index = 0;
+			current_project_index = highlighted_project_index;
                         break;
+                case 'r':
+//                         renameTask(taskComps[curr_task_comp_index]);
+			project_comps[highlighted_project_index]->rename();
+			project_comps[highlighted_project_index]->obj->save_project();
+			break;
 		case 'n'://create a new project
 			
                 default:
@@ -300,7 +359,7 @@ void drawTaskComp(UI_Comp<Task> comp){
         getyx(stdscr, cury, curx);
         //Draw the task
         move(comp.domain.y.first, comp.domain.x.first);
-        addstr(comp.obj->desc.c_str());
+        addstr(comp.obj->name.c_str());
         addstr(" ");
         if (comp.obj->Completed)
                 addstr("T");
@@ -344,59 +403,6 @@ void displayTodo(){
         refresh();
 }
 
-void renameTask(UI_Comp<Task> &comp){
-        std::stringstream s;
-        //save current pos
-        int cury, curx; 
-        getyx(stdscr, cury, curx);
-        //move to beginning of the text
-        move(comp.domain.y.first, comp.domain.x.first);
-        curs_set(2);
-        clrtoeol();
-        move(comp.domain.y.first, comp.domain.x.first);
-        int input_ch;
-	//should all be a function for itself
-        bool running = true;
-        while (running){
-                input_ch = getch();
-                switch (input_ch) {
-                        //Accept the rename, ENTER
-                        case 10:
-                                comp.obj->desc = s.str();
-                                running = false;
-                                break;
-                        //Discard the rename, ESC
-                        case 27:
-                                running = false;
-                                break;
-                        case KEY_BACKSPACE:
-                                int cury, curx;
-                                getyx(stdscr, cury, curx);
-                                move(cury, curx-1);
-                                clrtoeol();
-                                s.seekp(-1, s.cur);
-                                break;
-                        default:
-                                if ( (input_ch >= 'a' && input_ch <= 'z') || 
-                                                (input_ch >= 'A' && input_ch <= 'Z') ||
-                                                (input_ch >= '0' && input_ch <= '9') ||
-                                                input_ch == ' '
-                                                ){
-                                        s << (char)input_ch;
-                                        addch(input_ch);
-                                }
-                                break;
-                }
-        }
-        move(comp.domain.y.first, comp.domain.x.first);
-        addstr(comp.obj->desc.c_str());
-        addch(' ');
-        addch(comp.obj->Completed? 'T':'F');
-        curs_set(0);
-        move(cury, curx);
-        refresh();
-}
-
 void createNewTask(UI_Comp<Task> &comp, bool newRoot){
         if (newRoot){
                 taskRoots.push_back(std::shared_ptr<Task>(new Task("", false)));
@@ -412,8 +418,8 @@ void createNewTask(UI_Comp<Task> &comp, bool newRoot){
         vline(ACS_VLINE, LINES);
         displayTodo();
         for (auto it = taskComps.begin(); it != taskComps.end(); it++)
-                if (it->obj->desc == ""){
-                        renameTask(*it);
+                if (it->obj->name == ""){
+			it->rename();
                         break;
                 }
 }
@@ -422,13 +428,13 @@ void deleteTask(UI_Comp<Task> &comp){
         auto func = [&,comp](std::shared_ptr<Task> curTask, int d){
                 for (auto subTask = curTask->subTasks.begin(); subTask != curTask->subTasks.end();
                                 subTask++)
-                        if ((*subTask)->desc == comp.obj->desc){
+                        if ((*subTask)->name == comp.obj->name){
                                 curTask->subTasks.erase(subTask);
                                 break;
                         }
         };
         for (auto it = taskRoots.begin(); it != taskRoots.end(); it++){
-                if ( (*it)->desc ==comp.obj->desc){
+                if ( (*it)->name ==comp.obj->name){
                         taskRoots.erase(it);
                         break;
                 }
