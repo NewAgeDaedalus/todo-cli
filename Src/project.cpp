@@ -48,7 +48,6 @@ Project::Project(std::string file_name, std::string project_name){
 		fclose(fp);
 		throw "Project file already exists";
 	}
-	fclose(fp);
 	//Create a project file
 	fp = fopen(file_name.c_str(), "w");
 	fprintf(fp, "%s\n", project_name.c_str());
@@ -103,10 +102,10 @@ void Project::rename_project(std::string new_name){
 void loadProjects(std::vector<shared_ptr<Project>> &projects){
         struct dirent **nameList;
         int n = scandir(".", &nameList, NULL, alphasort);
+	projects.clear();
         while (n--){
                 if (nameList[n]->d_name[0] == '.')
                         continue;
-
                 projects.push_back((shared_ptr<Project>(new Project(nameList[n]->d_name))));
                 free(nameList[n]);
         }

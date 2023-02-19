@@ -1,5 +1,8 @@
+#include <cstddef>
+#include <cstdio>
 #include <curses.h> 
 #include <dirent.h>
+#include <ios>
 #include <sstream>
 #include <string.h>
 #include <stdlib.h>
@@ -87,7 +90,8 @@ void UI_Comp<Project>::draw_content(){
 }
 
 template <typename T>
-void UI_Comp<T>::rename(){
+int UI_Comp<T>::rename(){
+	int retVal = 0;
 	std::stringstream s;
         //save current pos
         int cury, curx; 
@@ -110,6 +114,7 @@ void UI_Comp<T>::rename(){
                                 break;
                         //Discard the rename, ESC
                         case 27:
+				retVal = 1;
                                 running = false;
                                 break;
                         case KEY_BACKSPACE:
@@ -136,6 +141,7 @@ void UI_Comp<T>::rename(){
         curs_set(0);
         move(cury, curx);
         refresh();
+	return retVal;
 }
 
 template<typename T>
@@ -215,7 +221,7 @@ int parseCommandRight(int input_ch){
                 //move down
                 case 'j':
                         //Ugly should probably be put into a helper function
-                        if ( curr_task_comp_index < taskComps.size()-1){
+                        if ( !taskComps.empty() && curr_task_comp_index < taskComps.size()-1 ){
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
                                 curComp = &taskComps[curr_task_comp_index+1];
 				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
@@ -252,10 +258,11 @@ int parseCommandRight(int input_ch){
 			project_comps[current_project_index]->obj->save_project(taskRoots);
                         break;
                 case 'r':
-//                         renameTask(taskComps[curr_task_comp_index]);
 			curComp->rename();
 			break;
                 case 'a':
+			if (taskComps.empty())
+				break;
                         createNewTask(taskComps[curr_task_comp_index], false);
                         break;
                 case 'A':
@@ -288,33 +295,44 @@ int parseCommandLeft(int input_ch){
         int running = 1;
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
-	UI_Comp<Project> &cur_project = *project_comps[current_project_index];
+	shared_ptr<UI_Comp<Project>> cur_project;
+// 	displayProjects();
+	if (project_comps.empty())
+		cur_project = NULL;
+	else
+		cur_project = project_comps[current_project_index];
         switch (input_ch){
-                case 'k':
+                case 'k':{
 			if (highlighted_project_index == 0)
 				break;
 			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury--;
 			highlighted_project_index--;
-			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
-                case 'j':
-			if (highlighted_project_index == project_comps.size() - 1)
+		}
+                case 'j':{
+			if ((long unsigned int)highlighted_project_index == project_comps.size() - 1 || cur_project == NULL)
 				break;
 			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury++;
 			highlighted_project_index++;
-			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
                         break;
-                case KEY_F(1):
+		}
+                case KEY_F(1):{
                         running = 0;
                         break;
-                case KEY_RIGHT:
+		}
+                case KEY_RIGHT:{
+			if (cur_project == NULL)
+				break;
                         curx = LEFT_RIGHT_BORDER + 1;
                         cury = 1;
                         focused = RIGHT;
                         break;
-                case 'o':
+		}
+                case 'o':{
+			if (cur_project == NULL)
+				break;
                         clear();
                         move(0,0);
                         displayProjects();
@@ -322,31 +340,59 @@ int parseCommandLeft(int input_ch){
                         vline(ACS_VLINE, LINES);
                         move(cury, curx);
                         current_project_index = cury;
-                        loadTodo(*cur_project.obj); //Index out of range danger
+			current_project_index = highlighted_project_index;
+                        loadTodo(*project_comps[current_project_index]->obj); //Index out of range danger
                         displayTodo();
                         focused = RIGHT;
                         cury = 0;
 			curr_task_comp_index = 0;
-			current_project_index = highlighted_project_index;
                         break;
-                case 'r':
-//                         renameTask(taskComps[curr_task_comp_index]);
+		}
+                case 'r':{
+			if (cur_project == NULL)
+				break;
 			project_comps[highlighted_project_index]->rename();
 			project_comps[highlighted_project_index]->obj->save_project();
 			break;
-		case 'n'://create a new project
-			
-                default:
-                        break;
+		}
+		case 'n':{
+			//Creata a new Project object in a new UI_Comp
+			shared_ptr<Project> new_proj = shared_ptr<Project>(new Project("new_file", "tmp"));
+			//Create the domain
+			struct comp_domain domain;
+			if (project_comps.empty()){
+				domain = comp_domain(0, COLS/4, 0, 1);
+			}else {
+				domain = project_comps.back()->domain;
+				domain.y.first++;
+				domain.y.second++;
+			}
+			//smart pointers smh
+			auto new_proj_comp = shared_ptr<UI_Comp<Project>>(new UI_Comp<Project>(domain, new_proj));
+			project_comps.push_back(new_proj_comp);
+			int ret = new_proj_comp->rename();
+			if (ret == 1){
+				project_comps.pop_back();
+				remove(new_proj->file_name.c_str());
+				current_project_index = project_comps.size()-1;
+				highlighted_project_index = current_project_index;
+				break;
+			}
+			new_proj_comp->obj->save_project();
+			new_proj_comp->obj->file_name = new_proj->name;
+			rename("new_file", new_proj->name.c_str());
+			break;
+		}
+		default:
+			break;
         }
         if (curx >= LEFT_RIGHT_BORDER && focused != RIGHT)
                 curx = LEFT_RIGHT_BORDER - 1;
         if (cury >= current_project_index)
                 cury = current_project_index-1;
         move(cury, curx);
-//         if (focused != RIGHT)
-//                 highlightProj(0, LEFT_RIGHT_BORDER -1, cury, cury,COLOR_WHITE,A_STANDOUT);
-        refresh();
+	project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+	refresh();
         return running;
 }
 

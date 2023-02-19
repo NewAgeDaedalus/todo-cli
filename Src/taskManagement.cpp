@@ -111,7 +111,7 @@ vector<shared_ptr<Task>> parseFile(string fileName){
         return tasksRoots;
 }
 
-//Should not be here
+//Should not be e
 void saveProj(string projFile, string projName){
         std::ofstream file(projFile);
         file << projName;//proj name contains \n

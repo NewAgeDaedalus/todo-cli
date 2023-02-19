@@ -32,7 +32,7 @@ class UI_Comp{
         UI_Comp();
 	void draw_content();
 	void highlight(int color, int mode);
-	void rename();
+	int rename();
 };
 
 //########################################[Functions]##############################
