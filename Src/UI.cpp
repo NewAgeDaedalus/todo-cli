@@ -165,6 +165,9 @@ std::vector<shared_ptr<UI_Comp<Project>>> project_comps;
 //########################################[INTERNAL DATA]##############################
 std::vector<UI_Comp<Task>> taskComps;
 static size_t curr_task_comp_index = 0;
+static size_t proj_display_begin, proj_display_end;
+static size_t task_display_begin, task_display_end;
+
 
 //########################################[STATIC FUNCTION PROTOTYPES]##############################
 void drawTaskComp(UI_Comp<Task> comp);
@@ -174,6 +177,7 @@ void displayTodo();
 void renameTask(UI_Comp<Task> &comp);
 void createNewTask(UI_Comp<Task> &comp, bool newRoot);
 void deleteTask(UI_Comp<Task> &comp);
+void redraw_scene();
 
 //########################################[INTERFACE FUNCTION DEFINITIONS]##############################
 
@@ -183,13 +187,14 @@ void initCurses(){
         noecho();
         keypad(stdscr, TRUE);
         clear();
+	proj_display_end = task_display_end = LINES/2;
 }
 
 void generate_project_comps(std::vector<std::shared_ptr<Project>> projects){
 	int i = 0;
 	for (auto project:projects){
 		struct comp_domain domain = comp_domain(0, COLS/4, i, i+1);
-		i++;
+		i = i>=LINES-3? LINES-1:i+1;
 		project_comps.push_back(shared_ptr<UI_Comp<Project>>(new UI_Comp<Project>(domain, project)));
 	}
 }
@@ -210,24 +215,29 @@ int parseCommandRight(int input_ch){
                 //move up
                 case 'k':
                         //Ugly should probably be put into a helper function
-                        if ( curr_task_comp_index > 0 && !taskComps.empty()){
-				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
-                                curComp = &taskComps[curr_task_comp_index-1];
-				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
-                                cury = curComp->domain.y.first;
-                                curr_task_comp_index--;
-                        }
+                        if ( curr_task_comp_index <= 0 || taskComps.empty())
+				break;
+			curComp = &taskComps[curr_task_comp_index-1];
+			cury = curComp->domain.y.first;
+			curr_task_comp_index--;
+			if ( cury == 0 && curr_task_comp_index > 0){
+				task_display_begin--;
+				task_display_end--;
+			}
                         break;
                 //move down
                 case 'j':
                         //Ugly should probably be put into a helper function
-                        if ( !taskComps.empty() && curr_task_comp_index < taskComps.size()-1 ){
-				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_NORMAL);
-                                curComp = &taskComps[curr_task_comp_index+1];
-				curComp->highlight(curComp->obj->Completed ? COLOR_GREEN:COLOR_RED, A_STANDOUT);
-                                cury = curComp->domain.y.first;
-                                curr_task_comp_index++;
-                        }
+                        if ( taskComps.empty() || curr_task_comp_index >= taskComps.size()-1 )
+				break;
+			curComp = &taskComps[curr_task_comp_index+1];
+			cury = curComp->domain.y.first;
+			curr_task_comp_index++;
+			if ( cury >= LINES-3 && curr_task_comp_index < taskComps.size()-1){
+				task_display_begin++;
+				task_display_end++;
+				cury = LINES-1;
+			}
                         break;
                 //set a task and all of its subtasks to complete
                 case 't':{
@@ -267,6 +277,7 @@ int parseCommandRight(int input_ch){
                         break;
                 case 'A':
                         createNewTask(taskComps[curr_task_comp_index], true);
+			redraw_scene();
                         break;
                 case 'd':
                         deleteTask(taskComps[curr_task_comp_index]);
@@ -287,7 +298,9 @@ int parseCommandRight(int input_ch){
         if (curx <= LEFT_RIGHT_BORDER && focused != LEFT)
                 curx = LEFT_RIGHT_BORDER + 1;
         move(cury, curx);
+	redraw_scene();
         refresh();
+	printf("%d %d %d\n", (int)curr_task_comp_index, cury, LINES);
         return running;
 }
 
@@ -353,6 +366,7 @@ int parseCommandLeft(int input_ch){
 				break;
 			project_comps[highlighted_project_index]->rename();
 			project_comps[highlighted_project_index]->obj->save_project();
+			redraw_scene();
 			break;
 		}
 		case 'n':{
@@ -376,6 +390,7 @@ int parseCommandLeft(int input_ch){
 				remove(new_proj->file_name.c_str());
 				current_project_index = project_comps.size()-1;
 				highlighted_project_index = current_project_index;
+				redraw_scene();
 				break;
 			}
 			new_proj_comp->obj->save_project();
@@ -443,8 +458,13 @@ void loadTodo(Project &project){
 }
 
 void displayTodo(){
-        for (auto it = taskComps.begin(); it != taskComps.end(); it++){
-                drawTaskComp(*it);
+// 	std::cout << task_display_begin << " " << task_display_end << "\n";
+	int j = 0; //needs better name
+	for (size_t i = task_display_begin; i < task_display_end && i < taskComps.size(); i++){
+		taskComps[i].domain.y.first = j;
+		taskComps[i].domain.y.second = j+2;
+                drawTaskComp(taskComps[i]);
+		j+=2;
         }
         refresh();
 }
@@ -503,3 +523,19 @@ void deleteTask(UI_Comp<Task> &comp){
         displayTodo();
 }
 
+void redraw_scene(){
+	clear();
+        int cury, curx;
+        getyx(stdscr, cury, curx);
+	//display projects
+	displayProjects();
+	//draw line
+        move(0, LEFT_RIGHT_BORDER);
+        vline(ACS_VLINE, LINES);
+	//display tasks
+	displayTodo();
+	move(cury, curx);
+	//highlight current task and project
+	project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+	taskComps[curr_task_comp_index].highlight(COLOR_WHITE, A_STANDOUT);
+}
