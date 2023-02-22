@@ -187,7 +187,8 @@ void initCurses(){
         noecho();
         keypad(stdscr, TRUE);
         clear();
-	proj_display_end = task_display_end = LINES/2;
+	task_display_end = LINES/2;
+	proj_display_end = LINES;
 }
 
 void generate_project_comps(std::vector<std::shared_ptr<Project>> projects){
@@ -200,8 +201,12 @@ void generate_project_comps(std::vector<std::shared_ptr<Project>> projects){
 }
 
 void displayProjects(){
-	for (auto project_comp:project_comps){
-		project_comp->draw_content();
+	int j = 0;
+	for (size_t i = proj_display_begin; i < project_comps.size() && i < proj_display_end; i++){
+		project_comps[i]->domain.y.first = j;
+		project_comps[i]->domain.y.second = j+1;
+		project_comps[i]->draw_content();
+		j++;
 	}
 }
 
@@ -300,7 +305,6 @@ int parseCommandRight(int input_ch){
         move(cury, curx);
 	redraw_scene();
         refresh();
-	printf("%d %d %d\n", (int)curr_task_comp_index, cury, LINES);
         return running;
 }
 
@@ -321,6 +325,10 @@ int parseCommandLeft(int input_ch){
 			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury--;
 			highlighted_project_index--;
+			if ( project_comps[highlighted_project_index]->domain.y.first == 0 && highlighted_project_index > 0){
+				proj_display_begin--;
+				proj_display_end--;
+			}
                         break;
 		}
                 case 'j':{
@@ -329,6 +337,13 @@ int parseCommandLeft(int input_ch){
 			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury++;
 			highlighted_project_index++;
+// 			std::stringstream tmp;
+// 			addstr(tmp.str().c_str());
+			if ( highlighted_project_index >= LINES -1 && highlighted_project_index < project_comps.size()-1){
+				proj_display_begin++;
+				proj_display_end++;
+				cury = LINES-1;
+			}
                         break;
 		}
                 case KEY_F(1):{
@@ -403,10 +418,7 @@ int parseCommandLeft(int input_ch){
         }
         if (curx >= LEFT_RIGHT_BORDER && focused != RIGHT)
                 curx = LEFT_RIGHT_BORDER - 1;
-        if (cury >= current_project_index)
-                cury = current_project_index-1;
-        move(cury, curx);
-	project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+	redraw_scene();
 	refresh();
         return running;
 }
@@ -536,6 +548,8 @@ void redraw_scene(){
 	displayTodo();
 	move(cury, curx);
 	//highlight current task and project
-	project_comps[current_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
-	taskComps[curr_task_comp_index].highlight(COLOR_WHITE, A_STANDOUT);
+	if (!project_comps.empty())
+		project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
+	if (!taskComps.empty())
+		taskComps[curr_task_comp_index].highlight(COLOR_WHITE, A_STANDOUT);
 }
