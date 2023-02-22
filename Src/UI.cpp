@@ -313,7 +313,6 @@ int parseCommandLeft(int input_ch){
         int curx, cury;
         getyx(stdscr, cury, curx); //It's a macro pointers not needed
 	shared_ptr<UI_Comp<Project>> cur_project;
-// 	displayProjects();
 	if (project_comps.empty())
 		cur_project = NULL;
 	else
@@ -337,8 +336,6 @@ int parseCommandLeft(int input_ch){
 			project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_NORMAL);
                         cury++;
 			highlighted_project_index++;
-// 			std::stringstream tmp;
-// 			addstr(tmp.str().c_str());
 			if ( highlighted_project_index >= LINES -1 && highlighted_project_index < project_comps.size()-1){
 				proj_display_begin++;
 				proj_display_end++;
