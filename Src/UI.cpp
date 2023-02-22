@@ -3,6 +3,7 @@
 #include <curses.h> 
 #include <dirent.h>
 #include <ios>
+#include <iterator>
 #include <sstream>
 #include <string.h>
 #include <stdlib.h>
@@ -371,6 +372,8 @@ int parseCommandLeft(int input_ch){
                         focused = RIGHT;
                         cury = 0;
 			curr_task_comp_index = 0;
+			task_display_begin = 0;
+			task_display_end = LINES/2;
                         break;
 		}
                 case 'r':{
@@ -492,11 +495,17 @@ void createNewTask(UI_Comp<Task> &comp, bool newRoot){
         move(0, LEFT_RIGHT_BORDER);
         vline(ACS_VLINE, LINES);
         displayTodo();
+	int canceled = 0;
+	std::vector<UI_Comp<Task>>::iterator new_comp;
         for (auto it = taskComps.begin(); it != taskComps.end(); it++)
                 if (it->obj->name == ""){
-			it->rename();
+		 	canceled = it->rename();
+			new_comp = it;
                         break;
                 }
+	if (canceled){
+		deleteTask(*new_comp);
+	}
 }
 
 void deleteTask(UI_Comp<Task> &comp){
