@@ -10,6 +10,7 @@ make && sudo make install
 ```
 
 ## USAGE
++ **F1** - to quit any time
 ### PROJECT VIEW
 + **right arrow** - swap to task view
 + **j** - move down
@@ -27,3 +28,4 @@ make && sudo make install
 + **a** - add a new subtask for the selected task
 + **A** - add a new task
 + **r** - rename a task
++ **s** - save the current state of all tasks
