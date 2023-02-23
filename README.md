@@ -1,6 +1,13 @@
 # COMMAND LINE TODO-LIST CLIENT
 
-Simple tool to help you organazie tasks
+Simple tool to help you organazie tasks.
+
+## COMPILATION AND INSTALLATION
+
+Make sure you have gcc installed and run the command
+```
+make && sudo make install
+```
 
 ## USAGE
 ### PROJECT VIEW
