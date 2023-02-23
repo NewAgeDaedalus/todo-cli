@@ -9,6 +9,8 @@
 #define LEFT  0
 #define RIGHT 1
 #define LEFT_RIGHT_BORDER (COLS/4)
+#define WHITE_ON_RED 1
+#define WHITE_ON_GREEN 2
 
 //########################################[Macros]##############################
 

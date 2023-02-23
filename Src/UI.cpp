@@ -174,6 +174,7 @@ static size_t task_display_begin, task_display_end;
 void drawTaskComp(UI_Comp<Task> comp);
 void createUiComps();
 void loadTodo(Project &project);
+void displayProjects();
 void displayTodo();
 void renameTask(UI_Comp<Task> &comp);
 void createNewTask(UI_Comp<Task> &comp, bool newRoot);
@@ -556,6 +557,11 @@ void redraw_scene(){
 	//highlight current task and project
 	if (!project_comps.empty())
 		project_comps[highlighted_project_index]->highlight(COLOR_WHITE, A_STANDOUT);
-	if (!taskComps.empty())
-		taskComps[curr_task_comp_index].highlight(COLOR_WHITE, A_STANDOUT);
+	if (!taskComps.empty()){
+		//The highlight color is sadly always white
+		if ( taskComps[curr_task_comp_index].obj->Completed )
+			taskComps[curr_task_comp_index].highlight(COLOR_GREEN, A_STANDOUT);
+		else
+			taskComps[curr_task_comp_index].highlight(COLOR_RED, A_STANDOUT);
+	}
 }

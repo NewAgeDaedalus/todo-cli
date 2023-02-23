@@ -1,4 +1,7 @@
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
+#include <sys/stat.h>
 #include <cursesw.h>
 #include <memory>
 #include <string.h>
@@ -26,7 +29,29 @@ int focused, current_project_index, highlighted_project_index;
 std::vector<std::shared_ptr<Project>> projects;
 
 int main(int argc, char *argv[]){
-        chdir("Data");
+	struct stat st = {0};
+
+	printf("%s\n", getenv("HOME"));
+	int retval = chdir(getenv("HOME"));
+	if (retval == -1){
+		printf("Change to home failed\n");
+		exit(1);
+	}
+	if ( stat(".local/etc/todo-cli/projects", &st) == -1 ){
+		if(mkdir(".local/etc/todo-cli", 0700)){
+			printf("failed to create dir\n");
+			exit(1);
+		}
+		if (mkdir(".local/etc/todo-cli/projects", 0700)){
+			printf("failed to create dir\n");
+			exit(1);
+		}
+	}
+        retval = chdir(".local/etc/todo-cli/projects");
+	if (retval){
+		printf("Change failed\n");
+		exit(1);
+	}
         initCurses();
         loadProjects(projects);
 	std::cout<<projects.size()<<"\n";
